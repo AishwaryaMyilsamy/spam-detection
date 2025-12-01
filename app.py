@@ -1,12 +1,13 @@
 import joblib
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 import re
 import string
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 import nltk
+import os
 
-# Ensure NLTK data is available (if not already downloaded in the environment)
+# Ensure NLTK data is available
 try:
     stopwords.words('english')
     WordNetLemmatizer()
@@ -14,29 +15,29 @@ except LookupError:
     nltk.download('stopwords')
     nltk.download('wordnet')
 
-# Flask and necessary libraries imported. NLTK data checked.
-
-
 # Load the trained model and TF-IDF vectorizer
 mnb_model = joblib.load('mnb_model.joblib')
 tfidf_vectorizer = joblib.load('tfidf_vectorizer.joblib')
 
-# Initialize lemmatizer and stopwords (must be done after NLTK download)
+# Initialize lemmatizer and stopwords
 lemmatizer = WordNetLemmatizer()
 stop_words = set(stopwords.words('english'))
 
-# Redefine the preprocessing function (must be identical to training phase)
+# Preprocessing function (must be identical to training phase)
 def preprocess_text(text):
     text = text.lower()
     text = ''.join([char for char in text if char not in string.punctuation])
-    text = re.sub(r'\d+', '', text)
+    text = re.sub(r'\\d+', '', text)
     words = text.split()
     words = [lemmatizer.lemmatize(word) for word in words if word not in stop_words]
     return ' '.join(words)
 
-# Model and vectorizer loaded. Preprocessing function defined.
+# Initialize Flask app
+app = Flask(__name__, static_folder='static', template_folder='static')
 
-app = Flask(__name__)
+@app.route('/')
+def home():
+    return render_template('index.html')
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -62,7 +63,7 @@ def predict():
     label = 'spam' if prediction == 1 else 'ham'
 
     return jsonify({"prediction": label})
-  
-if __name__ == '__main__':
-    app.run(debug=True)
 
+if __name__ == '__main__':
+    os.makedirs('static', exist_ok=True)
+    app.run(host='0.0.0.0', port=os.environ.get('PORT', 5000))
